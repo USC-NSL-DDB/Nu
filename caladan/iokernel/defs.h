@@ -31,6 +31,8 @@ struct iokernel_cfg {
 	bool	ias_prefer_selfpair; /* prefer self-pairings */
 	float	ias_bw_limit; /* IAS bw limit, (MB/s) */
 	bool	no_hw_qdel; /* Disable use of hardware timestamps for qdelay */
+	/* Enable debugger awareness (disable preemption signal if the process is paused by a debugger) */
+	bool    dbg_aware;
 };
 
 extern struct iokernel_cfg cfg;

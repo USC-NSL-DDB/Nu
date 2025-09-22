@@ -130,6 +130,7 @@ extern void sched_poll(void);
 extern int sched_add_core(struct proc *p);
 extern int sched_attach_proc(struct proc *p);
 extern void sched_detach_proc(struct proc *p);
+extern struct thread *sched_get_thread_on_core(unsigned int core);
 
 
 /*

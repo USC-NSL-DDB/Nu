@@ -442,11 +442,49 @@ static long ksched_runtime_intr(struct ksched_runtime_intr_req __user *ureq)
 		free_cpumask_var(mask);
 		return -EFAULT;
 	}
-  
+
 	smp_call_function_many(mask, ksched_ipi_runtime_ipi,
 			       (void *)(uintptr_t)req.opcode, req.wait);
 	free_cpumask_var(mask);
 	return smp_processor_id();
+}
+
+static long ksched_get_proc_state(void __user *arg)
+{
+    struct ksched_proc_state state;
+    struct task_struct *task;
+    int ret = 0;
+
+    if (copy_from_user(&state, arg, sizeof(state)))
+        return -EFAULT;
+
+    // Clear output fields
+    state.is_stopped = 0;
+    state.is_traced = 0;
+
+    rcu_read_lock();
+    task = ksched_lookup_task(state.pid);
+    if (!task) {
+        rcu_read_unlock();
+        return -ESRCH;
+    }
+
+    // Check if task is stopped (SIGSTOP, debugger breakpoint, etc.)
+    if (task->__state & (TASK_STOPPED | TASK_TRACED)) {
+        state.is_stopped = 1;
+    }
+
+    // Check if task is being traced (debugger attached)
+    if (task->ptrace != 0) {
+        state.is_traced = 1;
+    }
+
+    rcu_read_unlock();
+
+    if (copy_to_user(arg, &state, sizeof(state)))
+        return -EFAULT;
+
+    return ret;
 }
 
 static long
@@ -467,6 +505,8 @@ ksched_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return ksched_intr((void __user *)arg);
 	case KSCHED_IOC_RUNTIME_INTR:
 		return ksched_runtime_intr((void __user *)arg);
+	case KSCHED_IOC_GET_PROC_STATE:
+  	    return ksched_get_proc_state((void __user *)arg);
 	default:
 		break;
 	}

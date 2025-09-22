@@ -9,6 +9,7 @@
 #include <base/log.h>
 #include <base/stddef.h>
 
+#include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
 
@@ -206,6 +207,9 @@ int main(int argc, char *argv[])
 				return -EINVAL;
 			}
 			managed_numa_node = atoi(argv[++i]);
+		} else if (!strcmp(argv[i], "dbg")) {
+			cfg.dbg_aware = true;
+			log_info("[DEBUGGER AWARE MODE]: ON. Preemption signal will be blocked if the process is paused by a debugger.");
 		} else if (!strcmp(argv[i], "--")) {
 			dpdk_argv = &argv[i+1];
 			dpdk_argc = argc - i - 1;

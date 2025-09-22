@@ -14,6 +14,9 @@
 
 #define __user
 #include "../ksched/ksched.h"
+#include "sched.h"
+#include "base/log.h"
+#include "defs.h"
 
 extern int ksched_fd, ksched_count;
 extern struct ksched_shm_cpu *ksched_shm;
@@ -66,6 +69,23 @@ enum {
 };
 
 /**
+ * ksched_is_proc_debugger_paused - checks if a process is paused by debugger
+ * @pid: the process ID to check
+ *
+ * Returns true if the process is stopped or being traced by a debugger.
+ */
+static inline bool ksched_is_proc_debugger_paused(pid_t pid)
+{
+	struct ksched_proc_state state = { .pid = pid };
+	int ret = ioctl(ksched_fd, KSCHED_IOC_GET_PROC_STATE, &state);
+
+	if (ret != 0)
+		return false;
+
+	return state.is_stopped || state.is_traced;
+}
+
+/**
  * ksched_enqueue_intr - enqueues an interrupt request on a core
  * @core: the core to interrupt
  * @type: the type of interrupt to enqueue
@@ -78,6 +98,15 @@ enum {
 static inline void ksched_enqueue_intr(unsigned int core, int type)
 {
 	unsigned int signum;
+
+	if (cfg.dbg_aware) {
+    	struct thread *th;
+       	th = sched_get_thread_on_core(core);
+       	// Skip signaling if process is paused by debugger
+       	if (th && th->p && ksched_is_proc_debugger_paused(th->p->pid))
+            log_debug("signal sending is dropped as the process is paused by debugger.");
+      		return;
+	}
 
 	switch (type) {
 	case KSCHED_INTR_CEDE:
@@ -141,7 +170,7 @@ static inline void ksched_send_intrs(void)
 		return;
 
 	ksched_count = 0;
-	req.len = sizeof(ksched_set); 
+	req.len = sizeof(ksched_set);
 	req.mask = &ksched_set;
 	ret = ioctl(ksched_fd, KSCHED_IOC_INTR, &req);
 	BUG_ON(ret);

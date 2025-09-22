@@ -1,0 +1,11 @@
+CompileFlags:
+    Remove: [
+        -fconserve-stack,
+        -mpreferred-stack-boundary=*,
+        -mno-fp-ret-in-387,
+        -mindirect-branch=thunk-extern,
+        -mindirect-branch-register,
+        -fno-allow-store-data-races,
+        -fsanitize=bounds-strict,
+        -mrecord-mcount,
+    ]

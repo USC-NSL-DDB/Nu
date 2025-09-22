@@ -31,6 +31,13 @@ struct ksched_runtime_intr_req {
 	const void __user	*mask;
 };
 
+struct ksched_proc_state {
+	pid_t			pid;
+	__u8			is_stopped;
+	__u8			is_traced;
+	__u8			reserved[6];
+};
+
 struct ksched_shm_cpu {
 	/* written by userspace */
 	unsigned int		gen;
@@ -52,9 +59,10 @@ struct ksched_shm_cpu {
 };
 
 #define KSCHED_MAGIC		0xF0
-#define KSCHED_IOC_MAXNR	4
+#define KSCHED_IOC_MAXNR	10
 
 #define KSCHED_IOC_START	_IO(KSCHED_MAGIC, 1)
 #define KSCHED_IOC_PARK		_IO(KSCHED_MAGIC, 2)
 #define KSCHED_IOC_INTR		_IOW(KSCHED_MAGIC, 3, struct ksched_intr_req)
 #define KSCHED_IOC_RUNTIME_INTR	_IOW(KSCHED_MAGIC, 4, struct ksched_intr_req)
+#define KSCHED_IOC_GET_PROC_STATE _IOWR(KSCHED_MAGIC, 10, struct ksched_proc_state)

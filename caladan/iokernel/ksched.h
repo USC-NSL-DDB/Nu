@@ -11,11 +11,12 @@
 #include <base/stddef.h>
 #include <base/atomic.h>
 #include <base/limits.h>
-#include "base/log.h"
 
 #define __user
 #include "../ksched/ksched.h"
 #include "sched.h"
+#include "base/log.h"
+#include "defs.h"
 
 extern int ksched_fd, ksched_count;
 extern struct ksched_shm_cpu *ksched_shm;
@@ -98,16 +99,14 @@ static inline void ksched_enqueue_intr(unsigned int core, int type)
 {
 	unsigned int signum;
 
-	struct thread *th;
-
-  	// Get the thread running on this core to check its process
-  	th = sched_get_thread_on_core(core);
-
-  	// Skip signaling if process is paused by debugger
-  	if (th && th->p && ksched_is_proc_debugger_paused(th->p->pid))
-        // log_debug("signal sending is dropped as the process is paused by debugger.");
-        log_info("signal sending is dropped as the process is paused by debugger.");
-  		return;
+	if (cfg.dbg_aware) {
+    	struct thread *th;
+       	th = sched_get_thread_on_core(core);
+       	// Skip signaling if process is paused by debugger
+       	if (th && th->p && ksched_is_proc_debugger_paused(th->p->pid))
+            log_debug("signal sending is dropped as the process is paused by debugger.");
+      		return;
+	}
 
 	switch (type) {
 	case KSCHED_INTR_CEDE:

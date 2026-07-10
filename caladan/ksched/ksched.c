@@ -42,6 +42,13 @@
 
 #define YIELD_SIGNAL                       SIGUSR2
 
+/* task_struct::state was renamed to __state in 5.14. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
+#define TASK_STATE_FIELD(t) ((t)->__state)
+#else
+#define TASK_STATE_FIELD(t) ((t)->state)
+#endif
+
 /* the character device that provides the ksched IOCTL interface */
 static struct cdev ksched_cdev;
 
@@ -470,7 +477,7 @@ static long ksched_get_proc_state(void __user *arg)
     }
 
     // Check if task is stopped (SIGSTOP, debugger breakpoint, etc.)
-    if (task->__state & (TASK_STOPPED | TASK_TRACED)) {
+    if (TASK_STATE_FIELD(task) & (TASK_STOPPED | TASK_TRACED)) {
         state.is_stopped = 1;
     }
 

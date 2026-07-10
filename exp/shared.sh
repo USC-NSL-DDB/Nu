@@ -235,7 +235,10 @@ function __start_server_with_ddb() {
   ssh $(ssh_ip $srv_idx) "rm -rf $nu_libs_name"
   scp -r $nu_libs_name $(ssh_ip $srv_idx):$(pwd)/
 
-  DDB_ARGS="--ddb --ddbip $(ssh_ip $srv_idx)"
+  # --ddb_node_ip is the address DDB ssh'es back to; --ddb_sd_config_path must
+  # match the service-discovery config DDB writes when it starts its broker.
+  DDB_SD_CONFIG_PATH=${DDB_SD_CONFIG_PATH:-/tmp/ddb/service_discovery/config}
+  DDB_ARGS="--ddb --ddb_node_ip $(ssh_ip $srv_idx) --ddb_sd_config_path $DDB_SD_CONFIG_PATH"
 
   if [[ $main -eq 0 ]]; then
     ssh $(ssh_ip $srv_idx) "cd $(pwd); 

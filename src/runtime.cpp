@@ -19,7 +19,9 @@ extern "C" {
 #include <thread.h>
 
 #ifdef DDB_SUPPORT
-#include "ddb/integration.hpp"
+#include <ddb/integration.hpp>
+
+#include "ddb_helper/aux_thread.hpp"
 #endif
 
 #include "nu/command_line.hpp"
@@ -162,6 +164,14 @@ void Runtime::destroy_base() {
   store_release(&runtime_slab_, nullptr);
 }
 
+#ifdef DDB_SUPPORT
+void spawn_ddb_aux_thread() {
+  if (!DDB::start_ddb_aux_thread()) {
+    std::cerr << "Failed to start DDB auxiliary thread" << std::endl;
+  }
+}
+#endif
+
 int runtime_main_init(int argc, char **argv,
                       std::function<void(int argc, char **argv)> main_func) {
   AllOptionsDesc all_options_desc;
@@ -180,12 +190,35 @@ int runtime_main_init(int argc, char **argv,
 
 #ifdef DDB_SUPPORT
   auto enable_ddb = all_options_desc.vm.count("ddb");
-  auto ddb_ip = all_options_desc.nu.ddb_ip;
+  auto ddb_node_ip = all_options_desc.nu.ddb_node_ip;
+  auto ddb_sd_config_path = all_options_desc.nu.ddb_sd_config_path;
   if (enable_ddb) {
-    auto ddb_config = DDB::Config::get_default(ddb_ip);
+    std::cout << "[DDB] Node IP for DDB connection: " << ddb_node_ip
+              << std::endl;
+    std::cout << "[DDB] Reading service discovery config from: "
+              << ddb_sd_config_path << std::endl;
+    auto ddb_config = DDB::Config::get_default(ddb_node_ip);
+    ddb_config.with_ini_filepath(ddb_sd_config_path);
+    ddb_config.with_hash(DDB::get_binary_name());
+
+    // DDB groups sessions by caladan IP, so report it as user data.
+    auto caladan_ip = all_options_desc.caladan.ip;
+    struct netaddr caladan_addr;
+    if (str_to_netaddr(caladan_ip.c_str(), &caladan_addr) != 0) {
+      std::cerr << "Invalid caladan ip address: " << caladan_ip << std::endl;
+      return -EINVAL;
+    }
+    std::map<std::string, std::string> user_data = {
+        {"caladan_ip", std::to_string(caladan_addr.ip)},
+    };
+    ddb_config.with_user_data(user_data);
     auto connector = DDB::DDBConnector(ddb_config);
     connector.init();
   }
+
+  // A plain pthread that parks forever. gdb needs at least one non-caladan
+  // thread it can safely run inferior calls on.
+  spawn_ddb_aux_thread();
 #endif
 
   auto ret = rt::RuntimeInit(conf_path, [&] {

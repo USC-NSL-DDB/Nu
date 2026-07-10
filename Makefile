@@ -13,6 +13,9 @@ include ./build/config
 ifeq ($(CONFIG_DDB),y)
 override CXXFLAGS += -DDDB_SUPPORT
 override LDFLAGS += -lpaho-mqtt3c
+# DDB headers come from the connector (`make install` in connector/), not from a
+# vendored copy, so Nu always builds against the canonical definitions.
+override INC += -I$(HOME)/.local/include
 endif
 
 override CXXFLAGS += -DNCORES=$(NCORES) -ftemplate-backtrace-limit=0
@@ -115,7 +118,15 @@ bench_compute_intensity_obj = $(bench_compute_intensity_src:.cpp=.o)
 ctrl_main_src = src/ctrl_main.cpp
 ctrl_main_obj = $(ctrl_main_src:.cpp=.o)
 
-all: libnu.a bin/test_slab bin/test_proclet bin/test_pass_proclet bin/test_migrate \
+# DDB queries the controller through this proxy (proclet id -> location).
+ctrl_proxy_src = ddb_helper/ctrl_proxy.cpp
+ctrl_proxy_obj = $(ctrl_proxy_src:.cpp=.o)
+
+ifeq ($(CONFIG_DDB),y)
+ddb_targets = bin/ctrl_proxy
+endif
+
+all: libnu.a $(ddb_targets) bin/test_slab bin/test_proclet bin/test_pass_proclet bin/test_migrate \
 bin/test_lock bin/test_condvar bin/test_time bin/bench_rpc_tput \
 bin/bench_proclet_call_tput bin/bench_proclet_call_lat bin/bench_thread \
 bin/bench_migrate bin/test_sync_hash_map bin/test_dis_hash_table \
@@ -131,6 +142,13 @@ bin/test_continuous_migrate bin/test_interproclet
 	@$(CXX) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+bin/ctrl_proxy: $(ctrl_proxy_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
+	$(LDXX) -o $@ $(ctrl_proxy_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)
+
+.PHONY: ddb_helper
+ddb_helper: bin/ctrl_proxy
+	@echo "Built a controller proxy for DDB to query"
 
 bin/test_interproclet: $(test_interproclet_obj) $(librt_libs) $(RUNTIME_DEPS) $(lib_obj)
 	$(LDXX) -o $@ $(test_interproclet_obj) $(lib_obj) $(librt_libs) $(RUNTIME_LIBS) $(LDFLAGS)

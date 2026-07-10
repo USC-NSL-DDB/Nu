@@ -124,6 +124,8 @@ class Runtime {
 
   friend int runtime_main_init(int, char **, std::function<void(int, char **)>);
   friend int ctrl_main(int, char **);
+  // DDB's controller proxy constructs a bare Runtime to reach ControllerClient.
+  friend int ctrl_proxy_main(int, char **);
 
   Runtime();
   Runtime(uint32_t remote_ctrl_ip, Mode mode, lpid_t lpid, bool isol);

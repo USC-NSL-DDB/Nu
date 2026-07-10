@@ -23,6 +23,9 @@ add_executable(
     ${THRIFT_GEN_CPP_DIR}/social_network_types.cpp
 )
 
+# DDB headers are installed by `make install` in connector/, not vendored in Nu.
+set(DDB_INCLUDE_DIR "$ENV{HOME}/.local/include" CACHE PATH "DDB connector headers")
+
 target_include_directories(
     main PRIVATE
     ../third_party
@@ -30,6 +33,7 @@ target_include_directories(
     ${NU_DIR}/inc
     ${CALADAN_DIR}/inc
     ${CALADAN_DIR}/bindings/cc
+    ${DDB_INCLUDE_DIR}
 )
 
 target_link_directories(
